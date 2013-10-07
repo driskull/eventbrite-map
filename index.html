@@ -1,0 +1,243 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=7, IE=9"><!--The viewport meta tag is used to improve the presentation and behavior
+        of the samples on iOS devices-->
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
+
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="http://serverapi.arcgisonline.com/jsapi/arcgis/3.4/js/dojo/dijit/themes/soria/soria.css">
+    <link rel="stylesheet" type="text/css" href="http://serverapi.arcgisonline.com/jsapi/arcgis/3.4/js/esri/css/esri.css">
+    <link rel="stylesheet" type="text/css" href="css/eventbrite.css">
+    <style type="text/css">
+        html, body, #map {
+        height:100%;
+        width:100%;
+        margin:0;
+        padding:0;
+        }
+        body {
+        background-color:#FFF;
+        overflow:hidden;
+        font-family:"Trebuchet MS";
+        }
+        #outerContainer{
+        height: 100%;
+        width: 100%;
+        }
+        
+        #leftPanel{
+        width: 350px;
+        height:100%;
+        }
+        
+        #centerPannel{
+        height: 100%;
+        width: 100%;
+        }
+        
+        #topPanel{
+        height: 36px;
+        width:100%;
+        }
+        #events .item{
+            padding: 10px;
+            margin: 10px;
+            border-bottom: 1px solid #ccc;
+        }
+    </style>
+    <script type="text/javascript">
+        // host path regular expression
+            var pathRegex = new RegExp(/\/[^\/]+$/);
+            var locationPath = location.pathname.replace(pathRegex, '');
+            // Dojo Config
+            var dojoConfig = {
+                parseOnLoad: true,
+                packages: [
+                {
+                    name: "modules",
+                    location: locationPath + 'src'
+                }]
+            };
+    </script>
+    <script type="text/javascript" src="http://serverapi.arcgisonline.com/jsapi/arcgis/3.4/">
+</script>
+    <script type="text/javascript">
+    var map;
+        require([
+            "dojo/ready",
+            "dojo/dom",
+            "dojo/on",
+            "dojo/dom-attr",
+            "dojo/_base/connect",
+            "modules/eventbrite",
+            "esri/layers/FeatureLayer",
+            "dijit/layout/BorderContainer",
+            "dijit/layout/ContentPane",
+            "esri/geometry/Extent",
+            "esri/tasks/GeometryService",
+            "esri/geometry/Point",
+            "esri/config",
+            "esri/tasks/query",
+            "esri/urlUtils",
+            "esri/arcgis/utils"
+        ],
+        function (ready, dom, on, domAttr, connect, Eventbrite, FeatureLayer, BorderContainer, ContentPane, Extent, GeometryService, Point, esriConfig, Query, urlUtils, arcgisUtils) {
+
+     
+
+            function resizeMap() {
+                map.resize();
+                map.reposition();
+            }
+            
+            
+            function setContainers(){
+                var outerContainer = new BorderContainer({}, 'outerContainer');
+                var leftPanel = new ContentPane({
+                    region: "left"
+                }, 'leftPanel');
+                var topPanel = new ContentPane({
+                    region: "top"
+                }, 'topPanel');
+                var centerPanel = new ContentPane({
+                    region: "center"
+                }, 'centerPanel');
+                outerContainer.startup();
+            }
+            
+
+            function init(){
+            
+            
+                function queryFeature(data, i){
+                    var pad = 3;
+                    var queryGeom = new esri.geometry.Extent(data[i].geometry.x - pad, data[i].geometry.y - pad, data[i].geometry.x + pad, data[i].geometry.y + pad, map.spatialReference);
+                    var q = new Query();
+                    q.geometry = queryGeom;
+                    eb.featureLayer.selectFeatures(q, FeatureLayer.SELECTION_NEW, function(fs) {
+                        map.infoWindow.setFeatures(fs);
+                        map.infoWindow.show(data[i].geometry);
+                    });
+                }
+                
+                function showData(data){
+                    var html = '';
+                    if(data && data.length){
+                        for(var i = 0; i < data.length; i++){
+
+                            html += '';
+                            html += '<div class="item" data-index="' + i + '">';
+                            html += '<strong>' + data[i].attributes.event.title + '</strong>' + '</br>';
+                            
+                            
+                            
+                            html += 'Distance: ' + data[i].attributes.event.distance + '</br>';
+                            html += 'Attendees: ' + data[i].attributes.event.num_attendee_rows + '</br>';
+                            html += 'Start date: ' + data[i].attributes.event.start_date + '</br>';
+                            
+                            
+                            
+                            html += '<a target="_blank" href="' + data[i].attributes.event.url + '">Register</a>';
+
+                            html += '</div>';
+                            
+                            
+                            
+                            
+                            
+                        }
+                    }
+                    var node = dom.byId('events');
+                    if(node){
+                        node.innerHTML = html;
+                    }
+                    on(dom.byId('events'), '.item:click', function(){
+                        var index = parseInt(domAttr.get(this, 'data-index'), 10);
+                        queryFeature(data, index);
+                    });
+                        
+                }
+                
+                var eb = new Eventbrite({
+                    map: map,
+                    keywords: 'hackathon',
+                    app_key: "FO42353Q6PMXCGRZI6"
+                });
+
+                var extent = Extent({
+                    xmax: -13586376.565410411,
+                    xmin: -13663730.838034904,
+                    ymax: 4594092.65038178,
+                    ymin: 4502368.216439693,
+                    spatialReference: map.extent.spatialReference
+                });
+                
+                eb.watch('dataPoints', function(name, oldValue, value){
+                    showData(value);
+                })
+                
+                map.setExtent(extent);
+            }
+
+            ready(function () {
+                setContainers();
+                esriConfig.defaults.io.proxyUrl = "proxy/proxy.php";
+                //This service is for development and testing purposes only. We recommend that you create your own geometry service for use within your applications.
+                esriConfig.defaults.geometryService = GeometryService("http://tasks.arcgisonline.com/ArcGIS/rest/services/Geometry/GeometryServer");
+
+                var urlObject = urlUtils.urlToObject(document.location.href);
+                var webmap = "6e03e8c26aad4b9c92a87c1063ddb0e3";
+                var bingMapsKey = "Enter your Bing Maps Key";
+                if (urlObject.query) {
+                    webmap = urlObject.query.webmap;
+                    bingMapsKey = urlObject.query.bingMapsKey;
+                }
+
+                var mapDeferred = arcgisUtils.createMap(webmap, "map", {
+                    mapOptions: {
+                        slider: true,
+                        sliderStyle: 'small'
+                    },
+                    bingMapsKey: bingMapsKey,
+                    geometryServiceURL: "http://tasks.arcgisonline.com/ArcGIS/rest/services/Geometry/GeometryServer"
+                });
+                mapDeferred.addCallback(function (response) {
+                    map = response.map;
+                    if(map.loaded){
+                        init();
+                    }
+                    else{
+                        connect.connect(map, "onload", init);
+                    }
+                    //resize the map when the browser resizes
+                    connect.connect(dijit.byId('map'), 'resize', map, map.resize);
+                    connect.connect(window, "onresize", resizeMap);
+                });
+                mapDeferred.addErrback(function (error) {
+                    console.log("Map creation failed" + error.toString());
+                });
+            });
+        });
+    </script>
+</head>
+
+<body dir="" class="soria">
+    <div id="outerContainer">
+        <div id="topPanel">
+            Hackathons Near You!
+        </div>
+
+        <div id="leftPanel">
+            <div id="events"></div>
+        </div>
+
+        <div id="centerPanel">
+            <div id="map"></div>
+        </div>
+    </div>
+</body>
+</html>
